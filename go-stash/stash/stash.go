@@ -130,17 +130,19 @@ func buildPipelines(ctx context.Context, cfg config.Config, logger *slog.Logger)
 	}
 
 	for idx, cluster := range cfg.Clusters {
+		esConf := cluster.Output.ElasticSearch
 		client, err := elastic.NewClient(
 			elastic.SetSniff(false),
-			elastic.SetURL(cluster.Output.ElasticSearch.Hosts...),
-			elastic.SetBasicAuth(cluster.Output.ElasticSearch.Username, cluster.Output.ElasticSearch.Password),
+			elastic.SetURL(esConf.Hosts...),
+			elastic.SetGzip(esConf.Compress),
+			elastic.SetBasicAuth(esConf.Username, esConf.Password),
 		)
 		if err != nil {
 			cleanup()
 			return nil, fmt.Errorf("cluster %d elasticsearch client: %w", idx, err)
 		}
 
-		writer, err := es.NewWriter(cluster.Output.ElasticSearch, logger)
+		writer, err := es.NewWriter(client, esConf, logger)
 		if err != nil {
 			cleanup()
 			return nil, fmt.Errorf("cluster %d writer: %w", idx, err)

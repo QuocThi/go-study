@@ -1,0 +1,167 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - ./data/zookeeper:/var/lib/zookeeper/data
+
+  kafka1:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [zookeeper]
+    hostname: kafka1
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 20000000
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 20000000
+    volumes:
+      - ./data/kafka1:/var/lib/kafka/data
+
+  kafka2:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [zookeeper]
+    hostname: kafka2
+    ports:
+      - "9095:9094"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092,PLAINTEXT_HOST://localhost:9095
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 20000000
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 20000000
+    volumes:
+      - ./data/kafka2:/var/lib/kafka/data
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [zookeeper]
+    hostname: kafka3
+    ports:
+      - "9096:9094"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092,PLAINTEXT_HOST://localhost:9096
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 20000000
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 20000000
+    volumes:
+      - ./data/kafka3:/var/lib/kafka/data
+
+  fluent-bit:
+    image: fluent/fluent-bit:2.2
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      - ./kafka-producer/logs:/var/log/kafka-producer:ro
+      - ./data/fluent-bit:/fluent-bit/state
+    command:
+      ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    ports:
+      - "8081:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka1:9092,kafka2:9092,kafka3:9092
+
+  es1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    environment:
+      - node.name=es1
+      - cluster.name=gostash-es
+      - discovery.seed_hosts=es2,es3
+      - cluster.initial_master_nodes=es1,es2,es3
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./data/es1:/usr/share/elasticsearch/data
+
+  es2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    environment:
+      - node.name=es2
+      - cluster.name=gostash-es
+      - discovery.seed_hosts=es1,es3
+      - cluster.initial_master_nodes=es1,es2,es3
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    ports:
+      - "9201:9200"
+    volumes:
+      - ./data/es2:/usr/share/elasticsearch/data
+
+  es3:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    environment:
+      - node.name=es3
+      - cluster.name=gostash-es
+      - discovery.seed_hosts=es1,es2
+      - cluster.initial_master_nodes=es1,es2,es3
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    ports:
+      - "9202:9200"
+    volumes:
+      - ./data/es3:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.2
+    depends_on:
+      - es1
+      - es2
+      - es3
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://es1:9200","http://es2:9200","http://es3:9200"]
+    ports:
+      - "5601:5601"
+
+networks:
+  default:
+    name: gostash-local

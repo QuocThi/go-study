@@ -44,9 +44,6 @@ func NewConsumer(parent context.Context, cfg config.KafkaConf, topic string, han
 		cfg.Processors = 1
 	}
 	bufferSize := cfg.Processors * 2
-	if bufferSize < 1 {
-		bufferSize = 1
-	}
 	c := &Consumer{
 		cfg:      cfg,
 		topic:    topic,

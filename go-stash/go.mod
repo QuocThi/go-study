@@ -2,8 +2,6 @@ module github.com/kevwan/go-stash
 
 go 1.25
 
-toolchain go1.25.1
-
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/json-iterator/go v1.1.12

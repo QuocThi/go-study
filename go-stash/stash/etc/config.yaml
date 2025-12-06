@@ -1,49 +1,36 @@
 HTTP:
   Addr: ":8080"
 
+GracePeriod: 10s
+
 Clusters:
   - Input:
       Kafka:
-        Name: gostash
+        Name: local-gostash
         Brokers:
-          - "172.16.186.16:19092"
-          - "172.16.186.17:19092"
+          - "localhost:9094"
+          - "localhost:9095"
+          - "localhost:9096"
         Topics:
-          - k8slog
-        Group: pro
-        Consumers: 16
+          - logs
+        Group: gostash
+        Conns: 1
+        Consumers: 2
+        Processors: 4
+        MinBytes: 1048576
+        MaxBytes: 5242880
+        Offset: last
     Filters:
-      - Action: drop
-        Conditions:
-          - Key: k8s_container_name
-            Value: "-rpc"
-            Type: contains
-          - Key: level
-            Value: info
-            Type: match
-            Op: and
-      - Action: remove_field
-        Fields:
-          - message
-          - _source
-          - _type
-          - _score
-          - _id
-          - "@version"
-          - topic
-          - index
-          - beat
-          - docker_container
-          - offset
-          - prospector
-          - source
-          - stream
       - Action: transfer
         Field: message
         Target: data
     Output:
       ElasticSearch:
         Hosts:
-          - http://172.16.141.4:9200
-          - http://172.16.141.5:9200
-        Index: "{.event}-{{yyyy-MM-dd}}"
+          - "http://localhost:9200"
+          - "http://localhost:9201"
+          - "http://localhost:9202"
+        Index: "logs-{{yyyy.MM.dd}}"
+        MaxChunkBytes: 5242880
+        Compress: false
+        TimeZone: UTC

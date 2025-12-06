@@ -36,17 +36,9 @@ type (
 	}
 )
 
-func NewWriter(c config.ElasticSearchConf, logger *slog.Logger) (*Writer, error) {
-	client, err := elastic.NewClient(
-		elastic.SetSniff(false),
-		elastic.SetURL(c.Hosts...),
-		elastic.SetGzip(c.Compress),
-		elastic.SetBasicAuth(c.Username, c.Password),
-	)
-	if err != nil {
-		return nil, err
-	}
-
+// NewWriter builds a buffered bulk writer using the provided Elasticsearch client.
+// The caller is responsible for configuring the client (URLs, auth, gzip, etc.).
+func NewWriter(client *elastic.Client, c config.ElasticSearchConf, logger *slog.Logger) (*Writer, error) {
 	version, err := client.ElasticsearchVersion(c.Hosts[0])
 	if err != nil {
 		return nil, err
